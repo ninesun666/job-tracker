@@ -90,12 +90,8 @@ jobs:
             -p 3001:3001 \
             -v /opt/job-tracker/data:/app/data \
             -v /opt/job-tracker/uploads:/app/uploads \
+            -v /opt/job-tracker/.env:/app/.env:ro \
             -e NODE_ENV=production \
-            -e PORT=3001 \
-            -e OCR_PROVIDER=qwen \
-            -e LLM_API_URL=https://coding.dashscope.aliyuncs.com/v1/chat/completions \
-            -e LLM_API_KEY=${{ secrets.LLM_API_KEY }} \
-            -e LLM_MODEL=kimi-k2.5 \
             ${{ secrets.DOCKER_USERNAME }}/job-tracker:latest
 
           echo "✅ 容器启动成功"
