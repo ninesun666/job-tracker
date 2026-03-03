@@ -71,6 +71,32 @@ jobs:
 
           cd /opt/job-tracker
 
+          # 创建 .env 文件
+          echo "📝 创建环境配置..."
+          cat > .env << EOF
+          # 数据库配置
+          PG_HOST=postgres
+          PG_PORT=5432
+          PG_DATABASE=jobtracker
+          PG_USER=${{ secrets.PG_USER }}
+          PG_PASSWORD=${{ secrets.PG_PASSWORD }}
+
+          # JWT 配置
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+
+          # GitHub OAuth
+          GITHUB_CLIENT_ID=${{ secrets.GITHUB_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_CLIENT_SECRET }}
+          GITHUB_CALLBACK_URL=http://${{ secrets.SERVER_HOST }}:3001/api/login/githubCallBack
+          CLIENT_URL=http://${{ secrets.SERVER_HOST }}:3001
+
+          # OCR 配置
+          OCR_PROVIDER=${{ secrets.OCR_PROVIDER }}
+          LLM_API_KEY=${{ secrets.LLM_API_KEY }}
+          LLM_API_URL=${{ secrets.LLM_API_URL }}
+          LLM_MODEL=${{ secrets.LLM_MODEL }}
+          EOF
+
           # 拉取最新镜像
           echo "📋 拉取最新 Docker 镜像..."
           docker pull ${{ secrets.DOCKER_USERNAME }}/job-tracker:latest
