@@ -168,6 +168,13 @@ export const SearchIcon = createIcon(
   </>
 )
 
+// 筛选
+export const FilterIcon = createIcon(
+  <>
+    <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46" />
+  </>
+)
+
 // 下载/导出
 export const DownloadIcon = createIcon(
   <>
@@ -229,7 +236,25 @@ export const CloseIcon = createIcon(
   </>
 )
 
+// 菜单 (汉堡菜单)
+export const MenuIcon = createIcon(
+  <>
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </>
+)
+
 // ==================== 用户相关 ====================
+// GitHub 图标
+export const GithubIcon = createIcon(
+  <>
+    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+  </>,
+  '0 0 24 24'
+)
+
+
 
 // 用户
 export const UserIcon = createIcon(
@@ -372,6 +397,7 @@ export const LogoIcon = ({ size = 'lg', color = 'white', style, ...props }) => {
 
 // 导出所有图标
 export default {
+  GithubIcon,
   HomeIcon,
   ListIcon,
   PlusIcon,
@@ -384,6 +410,7 @@ export default {
   XCircleIcon,
   GiftIcon,
   SearchIcon,
+  FilterIcon,
   DownloadIcon,
   UploadIcon,
   EditIcon,
@@ -391,6 +418,7 @@ export default {
   SaveIcon,
   CameraIcon,
   CloseIcon,
+  MenuIcon,
   UserIcon,
   UsersIcon,
   ClockIcon,

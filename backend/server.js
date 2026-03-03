@@ -32,6 +32,8 @@ async function startServer() {
     app.use('/uploads', express.static(uploadsDir));
 
     // API 路由
+    app.use('/api/auth', require('./routes/auth'));
+    app.use('/api/login', require('./routes/auth')); // GitHub OAuth 回调兼容路径
     app.use('/api/jobs', require('./routes/jobs'));
     app.use('/api/company', require('./routes/company'));
     app.use('/api/ocr', require('./routes/ocr'));

@@ -1,0 +1,72 @@
+# Claude Progress Log
+
+================================================================================
+PROJECT: job-tracker
+================================================================================
+技术栈: React + Vite (前端) / Node.js + Express (后端) / PostgreSQL (数据库)
+================================================================================
+
+[Session 1 - Coding Agent] 2026-03-04 01:15
+Features: F001-F007, F012
+Status: COMPLETED
+Author: AI
+Summary:
+  - F001: PostgreSQL 数据库迁移完成 (users, job_applications, company_cache, ocr_history, login_history 表)
+  - F002: GitHub OAuth 后端 API 实现 (重定向、回调、token 生成)
+  - F003: JWT 认证中间件实现
+  - F004: 投递记录 API 数据隔离 (所有查询添加 user_id 过滤)
+  - F005: 前端登录页面 (GitHub OAuth 按钮)
+  - F006: AuthContext 登录态管理 (token 验证、自动登出)
+  - F007: API 请求认证头 (axios 拦截器)
+  - F012: OCR API 用户隔离
+  
+Files Modified:
+  - backend/models/database.js (PostgreSQL 连接和表结构)
+  - backend/routes/auth.js (GitHub OAuth)
+  - backend/routes/jobs.js (数据隔离)
+  - backend/routes/ocr.js (用户隔离)
+  - frontend/src/contexts/AuthContext.jsx (新建)
+  - frontend/src/pages/Login.jsx (新建)
+  - frontend/src/pages/AuthCallback.jsx (新建)
+  - frontend/src/App.jsx (路由守卫)
+  - frontend/src/pages/Dashboard.jsx (使用 AuthContext)
+  - frontend/src/pages/Applications.jsx (使用 AuthContext)
+  - frontend/src/pages/NewApplication.jsx (使用 AuthContext)
+  - frontend/src/components/Icons.jsx (添加 GithubIcon)
+  - frontend/src/index.css (用户信息样式)
+
+Build: ✅ 成功 (1.19s)
+
+================================================================================
+[Session 2 - iFlow CLI] 2026-03-04 03:30
+Features: F008-F011
+Status: COMPLETED
+Summary:
+  - F008: 移动端底部导航栏 (MobileNav.jsx, 响应式布局, 悬浮新建按钮)
+  - F009: 移动端表单优化 (固定底部操作栏, 大触摸区域, 卡片式布局)
+  - F010: 移动端列表卡片化 (响应式表格/卡片切换)
+  - F011: 用户个人中心页面 (Profile.jsx, 用户信息卡片, 统计数据, 登出功能)
+
+Files Modified:
+  - frontend/src/components/MobileNav.jsx (已存在，验证正确)
+  - frontend/src/pages/Profile.jsx (新建)
+  - frontend/src/pages/NewApplication.jsx (移动端表单优化)
+  - frontend/src/pages/Applications.jsx (移动端卡片列表)
+  - frontend/src/App.jsx (添加 Profile 路由)
+  - frontend/src/index.css (添加移动端样式)
+  - frontend/src/contexts/AuthContext.jsx (开发模式 bypass)
+  - frontend/.env.development (新建)
+
+Build: ✅ 成功 (1.27s)
+
+================================================================================
+FEATURE STATUS
+================================================================================
+COMPLETED: 12 (F001-F012)
+PENDING:   3 (F013-F015)
+
+NEXT FEATURES:
+  - F013: 生产环境 PostgreSQL 配置
+  - F014: GitHub OAuth 生产配置
+  - F015: 端到端测试
+================================================================================

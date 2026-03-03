@@ -1,6 +1,7 @@
 /**
  * OCR 图片识别路由
  * 支持 GLM-4V、通义千问 VL、Claude、GPT-4V 等视觉模型
+ * 添加用户隔离支持
  */
 
 const express = require('express');
@@ -8,7 +9,26 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
 const { run, get, all } = require('../models/database');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'job-tracker-secret-key-change-in-production';
+
+// 认证中间件
+function authMiddleware(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ success: false, error: '请先登录' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userId = decoded.userId;
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, error: 'Token 无效或已过期' });
+  }
+}
 
 // 配置文件上传
 const uploadDir = path.join(__dirname, '../uploads');
@@ -99,8 +119,9 @@ function getLLMProvider() {
 /**
  * 上传并识别图片
  * POST /api/ocr/recognize
+ * 需要登录
  */
-router.post('/recognize', upload.single('image'), async (req, res) => {
+router.post('/recognize', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, error: '请上传图片' });
@@ -143,12 +164,12 @@ router.post('/recognize', upload.single('image'), async (req, res) => {
       }
     }
 
-    // 保存识别历史
+    // 保存识别历史（关联用户）
     try {
-      run(`
-        INSERT INTO ocr_history (image_path, recognized_text, extracted_info)
-        VALUES (?, ?, ?)
-      `, [imagePath, JSON.stringify(result.data?.rawResponse || ''), JSON.stringify(result.data)]);
+      await run(`
+        INSERT INTO ocr_history (user_id, image_path, recognized_text, extracted_info)
+        VALUES ($1, $2, $3, $4)
+      `, [req.userId, imagePath, JSON.stringify(result.data?.rawResponse || ''), JSON.stringify(result.data)]);
     } catch (e) {
       console.error('Failed to save OCR history:', e);
     }
@@ -565,10 +586,11 @@ router.get('/status', async (req, res) => {
 /**
  * 获取识别历史
  * GET /api/ocr/history
+ * 需要登录，只返回当前用户的历史
  */
-router.get('/history', (req, res) => {
+router.get('/history', authMiddleware, (req, res) => {
   try {
-    const rows = all('SELECT * FROM ocr_history ORDER BY created_at DESC LIMIT 50');
+    const rows = all('SELECT * FROM ocr_history WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50', [req.userId]);
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

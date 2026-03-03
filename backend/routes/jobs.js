@@ -1,38 +1,63 @@
 /**
- * 投递记录路由
+ * 投递记录路由 - 带用户隔离
  */
 
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const { run, get, all } = require('../models/database');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'job-tracker-secret-key-change-in-production';
+
+// 认证中间件
+function authMiddleware(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ success: false, error: '请先登录' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userId = decoded.userId;
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, error: 'Token 无效或已过期' });
+  }
+}
+
+// 所有路由都需要认证
+router.use(authMiddleware);
+
 // 获取所有投递记录
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { status, company, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
+    const userId = req.userId;
     
-    let sql = 'SELECT * FROM job_applications WHERE 1=1';
-    const params = [];
+    let sql = 'SELECT * FROM job_applications WHERE user_id = $1';
+    const params = [userId];
+    let paramIndex = 2;
     
     if (status) {
-      sql += ' AND status = ?';
+      sql += ` AND status = $${paramIndex}`;
       params.push(status);
+      paramIndex++;
     }
     if (company) {
-      sql += ' AND company_name LIKE ?';
+      sql += ` AND company_name LIKE $${paramIndex}`;
       params.push(`%${company}%`);
+      paramIndex++;
     }
     
     // 获取总数
-    let countSql = 'SELECT COUNT(*) as total FROM job_applications WHERE 1=1';
-    const countParams = [...params];
+    const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as total');
+    const countResult = await get(countSql, params);
     
-    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    sql += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), parseInt(offset));
     
-    const rows = all(sql, params);
-    const countResult = get(countSql, countParams.slice(0, -2));
+    const rows = await all(sql, params);
     
     res.json({
       success: true,
@@ -50,9 +75,9 @@ router.get('/', (req, res) => {
 });
 
 // 获取单个记录
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const row = get('SELECT * FROM job_applications WHERE id = ?', [req.params.id]);
+    const row = await get('SELECT * FROM job_applications WHERE id = $1 AND user_id = $2', [req.params.id, req.userId]);
     if (!row) {
       return res.status(404).json({ success: false, error: '记录不存在' });
     }
@@ -63,7 +88,7 @@ router.get('/:id', (req, res) => {
 });
 
 // 创建投递记录
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const {
       company_name,
@@ -86,17 +111,17 @@ router.post('/', (req, res) => {
       hr_contact
     } = req.body;
 
-    const result = run(`
+    const result = await run(`
       INSERT INTO job_applications (
-        company_name, company_scale, company_stock, company_founded, company_notes,
+        user_id, company_name, company_scale, company_stock, company_founded, company_notes,
         position, position_description, position_requirements, self_match, notes,
         resume_sent, apply_date, status, source_platform,
         salary_range, location, hr_name, hr_contact
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     `, [
-      company_name, company_scale, company_stock, company_founded, company_notes,
+      req.userId, company_name, company_scale, company_stock, company_founded, company_notes,
       position, position_description, position_requirements, self_match, notes,
-      resume_sent ? 1 : 0, apply_date || new Date().toISOString().split('T')[0],
+      resume_sent ? true : false, apply_date || new Date().toISOString().split('T')[0],
       status || 'pending', source_platform, salary_range, location, hr_name, hr_contact
     ]);
 
@@ -111,8 +136,14 @@ router.post('/', (req, res) => {
 });
 
 // 更新投递记录
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
+    // 先检查是否属于当前用户
+    const existing = await get('SELECT id FROM job_applications WHERE id = $1 AND user_id = $2', [req.params.id, req.userId]);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: '记录不存在或无权修改' });
+    }
+
     const {
       company_name,
       company_scale,
@@ -136,22 +167,22 @@ router.put('/:id', (req, res) => {
       interview_result
     } = req.body;
 
-    run(`
+    await run(`
       UPDATE job_applications SET
-        company_name = ?, company_scale = ?, company_stock = ?, company_founded = ?, company_notes = ?,
-        position = ?, position_description = ?, position_requirements = ?, self_match = ?, notes = ?,
-        resume_sent = ?, apply_date = ?, status = ?, source_platform = ?,
-        salary_range = ?, location = ?, hr_name = ?, hr_contact = ?,
-        interview_date = ?, interview_result = ?,
+        company_name = $1, company_scale = $2, company_stock = $3, company_founded = $4, company_notes = $5,
+        position = $6, position_description = $7, position_requirements = $8, self_match = $9, notes = $10,
+        resume_sent = $11, apply_date = $12, status = $13, source_platform = $14,
+        salary_range = $15, location = $16, hr_name = $17, hr_contact = $18,
+        interview_date = $19, interview_result = $20,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
+      WHERE id = $21 AND user_id = $22
     `, [
       company_name, company_scale, company_stock, company_founded, company_notes,
       position, position_description, position_requirements, self_match, notes,
-      resume_sent ? 1 : 0, apply_date, status, source_platform,
+      resume_sent ? true : false, apply_date, status, source_platform,
       salary_range, location, hr_name, hr_contact,
       interview_date, interview_result,
-      req.params.id
+      req.params.id, req.userId
     ]);
 
     res.json({ success: true, message: '更新成功' });
@@ -161,9 +192,9 @@ router.put('/:id', (req, res) => {
 });
 
 // 删除投递记录
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    run('DELETE FROM job_applications WHERE id = ?', [req.params.id]);
+    const result = await run('DELETE FROM job_applications WHERE id = $1 AND user_id = $2', [req.params.id, req.userId]);
     res.json({ success: true, message: '删除成功' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -171,17 +202,20 @@ router.delete('/:id', (req, res) => {
 });
 
 // 统计数据
-router.get('/stats/overview', (req, res) => {
+router.get('/stats/overview', async (req, res) => {
   try {
+    const userId = req.userId;
+    
     const stats = {
-      total: get('SELECT COUNT(*) as count FROM job_applications')?.count || 0,
-      pending: get("SELECT COUNT(*) as count FROM job_applications WHERE status = 'pending'")?.count || 0,
-      interviewing: get("SELECT COUNT(*) as count FROM job_applications WHERE status = 'interviewing'")?.count || 0,
-      offered: get("SELECT COUNT(*) as count FROM job_applications WHERE status = 'offered'")?.count || 0,
-      rejected: get("SELECT COUNT(*) as count FROM job_applications WHERE status = 'rejected'")?.count || 0,
-      thisWeek: get("SELECT COUNT(*) as count FROM job_applications WHERE date(apply_date) >= date('now', '-7 days')")?.count || 0,
-      thisMonth: get("SELECT COUNT(*) as count FROM job_applications WHERE date(apply_date) >= date('now', '-30 days')")?.count || 0
+      total: (await get('SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1', [userId]))?.count || 0,
+      pending: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND status = 'pending'", [userId]))?.count || 0,
+      interviewing: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND status = 'interviewing'", [userId]))?.count || 0,
+      offered: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND status = 'offered'", [userId]))?.count || 0,
+      rejected: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND status = 'rejected'", [userId]))?.count || 0,
+      thisWeek: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND date(apply_date) >= date('now', '-7 days')", [userId]))?.count || 0,
+      thisMonth: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND date(apply_date) >= date('now', '-30 days')", [userId]))?.count || 0
     };
+    
     res.json({ success: true, data: stats });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

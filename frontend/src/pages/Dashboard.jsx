@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
 import { 
   ChartIcon, 
   CalendarIcon, 
@@ -15,9 +15,8 @@ import {
   ArrowRightIcon
 } from '../components/Icons'
 
-const API_BASE = '/api'
-
 function Dashboard() {
+  const { api, user } = useAuth()
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -37,8 +36,8 @@ function Dashboard() {
   const fetchData = async () => {
     try {
       const [statsRes, appsRes] = await Promise.all([
-        axios.get(`${API_BASE}/jobs/stats/overview`),
-        axios.get(`${API_BASE}/jobs?limit=5`)
+        api.get('/jobs/stats/overview'),
+        api.get('/jobs?limit=5')
       ])
       
       if (statsRes.data.success) {
@@ -56,7 +55,7 @@ function Dashboard() {
 
   const exportExcel = async () => {
     try {
-      const response = await axios.get(`${API_BASE}/export/excel`, {
+      const response = await api.get('/export/excel', {
         responseType: 'blob'
       })
       const url = window.URL.createObjectURL(new Blob([response.data]))

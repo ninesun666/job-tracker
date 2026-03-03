@@ -1,50 +1,49 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
 import { 
-  ListIcon, 
-  DownloadIcon, 
-  PlusIcon, 
-  InboxIcon,
-  EditIcon,
+  SearchIcon, 
+  EditIcon, 
   TrashIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon
+  InboxIcon,
+  FilterIcon
 } from '../components/Icons'
 
-const API_BASE = '/api'
-
 function Applications() {
+  const { api } = useAuth()
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({
-    company: '',
-    status: '',
-    page: 1
-  })
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
     total: 0,
     pages: 0
   })
 
   useEffect(() => {
     fetchApplications()
-  }, [filters])
+  }, [pagination.page, statusFilter])
 
   const fetchApplications = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (filters.company) params.append('company', filters.company)
-      if (filters.status) params.append('status', filters.status)
-      params.append('page', filters.page)
-      params.append('limit', 20)
-
-      const res = await axios.get(`${API_BASE}/jobs?${params}`)
+      const params = new URLSearchParams({
+        page: pagination.page,
+        limit: pagination.limit
+      })
+      if (statusFilter) params.append('status', statusFilter)
+      if (searchTerm) params.append('company', searchTerm)
       
-      if (res.data.success) {
-        setApplications(res.data.data)
-        setPagination(res.data.pagination)
+      const response = await api.get(`/jobs?${params}`)
+      if (response.data.success) {
+        setApplications(response.data.data)
+        setPagination(prev => ({
+          ...prev,
+          total: response.data.pagination.total,
+          pages: response.data.pagination.pages
+        }))
       }
     } catch (err) {
       console.error('Failed to fetch applications:', err)
@@ -53,45 +52,31 @@ function Applications() {
     }
   }
 
-  const deleteApplication = async (id) => {
+  const handleSearch = (e) => {
+    e.preventDefault()
+    setPagination(prev => ({ ...prev, page: 1 }))
+    fetchApplications()
+  }
+
+  const handleDelete = async (id) => {
     if (!window.confirm('确定要删除这条记录吗？')) return
     
     try {
-      await axios.delete(`${API_BASE}/jobs/${id}`)
+      await api.delete(`/jobs/${id}`)
       fetchApplications()
     } catch (err) {
       alert('删除失败：' + err.message)
     }
   }
 
-  const exportExcel = async () => {
-    try {
-      const params = new URLSearchParams()
-      if (filters.status) params.append('status', filters.status)
-      
-      const response = await axios.get(`${API_BASE}/export/excel?${params}`, {
-        responseType: 'blob'
-      })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `面试投递记录_${new Date().toISOString().split('T')[0]}.xlsx`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-    } catch (err) {
-      alert('导出失败：' + err.message)
-    }
-  }
-
   const getStatusConfig = (status) => {
     const configs = {
-      pending: { class: 'status-pending', text: '待处理' },
-      applied: { class: 'status-applied', text: '已投递' },
-      interviewing: { class: 'status-interviewing', text: '面试中' },
-      offered: { class: 'status-offered', text: '已获Offer' },
-      rejected: { class: 'status-rejected', text: '已拒绝' },
-      withdrawn: { class: 'status-withdrawn', text: '已撤回' }
+      pending: { class: 'status-pending', text: '待处理', color: '#6b7280' },
+      applied: { class: 'status-applied', text: '已投递', color: '#3b82f6' },
+      interviewing: { class: 'status-interviewing', text: '面试中', color: '#10b981' },
+      offered: { class: 'status-offered', text: '已获Offer', color: '#8b5cf6' },
+      rejected: { class: 'status-rejected', text: '已拒绝', color: '#ef4444' },
+      withdrawn: { class: 'status-withdrawn', text: '已撤回', color: '#9ca3af' }
     }
     return configs[status] || configs.pending
   }
@@ -103,7 +88,7 @@ function Applications() {
     { value: 'interviewing', label: '面试中' },
     { value: 'offered', label: '已获Offer' },
     { value: 'rejected', label: '已拒绝' },
-    { value: 'withdrawn', label: '已撤回' },
+    { value: 'withdrawn', label: '已撤回' }
   ]
 
   return (
@@ -115,31 +100,36 @@ function Applications() {
           <p className="page-subtitle">共 {pagination.total} 条记录</p>
         </div>
         <div className="page-actions">
-          <button onClick={exportExcel} className="btn btn-secondary">
-            <DownloadIcon size="sm" />
-            导出Excel
-          </button>
           <Link to="/new" className="btn btn-primary">
-            <PlusIcon size="sm" />
             新建记录
           </Link>
         </div>
       </div>
 
-      {/* 筛选工具栏 */}
-      <div className="card" style={{ padding: '16px 20px' }}>
-        <div className="toolbar" style={{ marginBottom: 0 }}>
-          <input
-            type="text"
-            className="search-input"
-            placeholder="搜索公司名称..."
-            value={filters.company}
-            onChange={(e) => setFilters({ ...filters, company: e.target.value, page: 1 })}
-          />
+      {/* 搜索和筛选 */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, flex: 1, minWidth: 200 }}>
+            <div className="search-input" style={{ flex: 1 }}>
+              <SearchIcon size="sm" />
+              <input
+                type="text"
+                placeholder="搜索公司名称..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <button type="submit" className="btn btn-secondary">搜索</button>
+          </form>
+          
           <select
-            className="filter-select"
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
+            className="form-select"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value)
+              setPagination(prev => ({ ...prev, page: 1 }))
+            }}
+            style={{ width: 'auto', minWidth: 120 }}
           >
             {statusOptions.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -148,106 +138,163 @@ function Applications() {
         </div>
       </div>
 
-      {/* 表格卡片 */}
-      <div className="card" style={{ padding: 0 }}>
-        {loading ? (
-          <div className="loading">
-            <div className="loading-spinner"></div>
-            <span>加载中...</span>
-          </div>
-        ) : applications.length === 0 ? (
+      {/* 列表 */}
+      {loading ? (
+        <div className="loading">
+          <div className="loading-spinner"></div>
+          <span>加载中...</span>
+        </div>
+      ) : applications.length === 0 ? (
+        <div className="card">
           <div className="empty-state">
             <InboxIcon size="xl" style={{ color: 'var(--text-placeholder)', marginBottom: 16 }} />
             <div className="empty-title">暂无投递记录</div>
             <div className="empty-desc">开始记录你的求职之旅</div>
             <Link to="/new" className="btn btn-primary" style={{ marginTop: 16 }}>
-              <PlusIcon size="sm" />
-              开始记录
+              新建记录
             </Link>
           </div>
-        ) : (
-          <div className="table-wrapper" style={{ border: 'none' }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>公司</th>
-                  <th>规模</th>
-                  <th>上市</th>
-                  <th>岗位</th>
-                  <th>薪资</th>
-                  <th>地点</th>
-                  <th>投递时间</th>
-                  <th>状态</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {applications.map(app => {
-                  const statusConfig = getStatusConfig(app.status)
-                  return (
-                    <tr key={app.id}>
-                      <td><span className="table-cell-primary">{app.company_name}</span></td>
-                      <td className="table-cell-secondary">{app.company_scale || '-'}</td>
-                      <td className="table-cell-secondary">{app.company_stock || '-'}</td>
-                      <td>{app.position}</td>
-                      <td className="table-cell-secondary">{app.salary_range || '-'}</td>
-                      <td className="table-cell-secondary">{app.location || '-'}</td>
-                      <td className="table-cell-secondary">{app.apply_date}</td>
-                      <td>
-                        <span className={`status ${statusConfig.class}`}>
-                          <span className="status-dot"></span>
-                          {statusConfig.text}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <Link to={`/edit/${app.id}`} className="btn btn-sm btn-ghost">
-                            <EditIcon size="sm" />
-                            编辑
-                          </Link>
-                          <button 
-                            onClick={() => deleteApplication(app.id)} 
-                            className="btn btn-sm btn-ghost"
-                            style={{ color: 'var(--danger)' }}
-                          >
-                            <TrashIcon size="sm" />
-                            删除
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+        </div>
+      ) : (
+        <>
+          {/* 桌面端表格 */}
+          <div className="card applications-table">
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>公司</th>
+                    <th>岗位</th>
+                    <th>投递时间</th>
+                    <th>状态</th>
+                    <th>薪资范围</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {applications.map(app => {
+                    const statusConfig = getStatusConfig(app.status)
+                    return (
+                      <tr key={app.id}>
+                        <td>
+                          <span className="table-cell-primary">{app.company_name}</span>
+                          {app.company_scale && (
+                            <span style={{ 
+                              color: 'var(--text-placeholder)', 
+                              marginLeft: 8, 
+                              fontSize: '12px' 
+                            }}>
+                              {app.company_scale}
+                            </span>
+                          )}
+                        </td>
+                        <td>{app.position}</td>
+                        <td className="table-cell-secondary">{app.apply_date || '-'}</td>
+                        <td>
+                          <span className={`status ${statusConfig.class}`}>
+                            <span className="status-dot"></span>
+                            {statusConfig.text}
+                          </span>
+                        </td>
+                        <td className="table-cell-secondary">{app.salary_range || '-'}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <Link to={`/edit/${app.id}`} className="btn btn-sm btn-ghost">
+                              <EditIcon size="sm" />
+                            </Link>
+                            <button 
+                              className="btn btn-sm btn-ghost" 
+                              style={{ color: 'var(--danger)' }}
+                              onClick={() => handleDelete(app.id)}
+                            >
+                              <TrashIcon size="sm" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
 
-        {/* 分页 */}
-        {pagination.pages > 1 && (
-          <div className="pagination" style={{ padding: '16px 20px', borderTop: '1px solid var(--border-light)' }}>
-            <button
-              className="pagination-btn"
-              disabled={filters.page === 1}
-              onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
-            >
-              <ArrowLeftIcon size="sm" />
-              上一页
-            </button>
-            <span className="pagination-info">
-              {filters.page} / {pagination.pages}
-            </span>
-            <button
-              className="pagination-btn"
-              disabled={filters.page === pagination.pages}
-              onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
-            >
-              下一页
-              <ArrowRightIcon size="sm" />
-            </button>
+          {/* 移动端卡片列表 */}
+          <div className="applications-cards">
+            {applications.map(app => {
+              const statusConfig = getStatusConfig(app.status)
+              return (
+                <Link 
+                  key={app.id} 
+                  to={`/edit/${app.id}`}
+                  className="application-card"
+                >
+                  <div className="card-header-row">
+                    <div className="card-main-info">
+                      <h3 className="card-company">{app.company_name}</h3>
+                      <p className="card-position">{app.position}</p>
+                    </div>
+                    <span className={`status ${statusConfig.class}`}>
+                      <span className="status-dot"></span>
+                      {statusConfig.text}
+                    </span>
+                  </div>
+                  
+                  <div className="card-details">
+                    {app.salary_range && (
+                      <span className="card-detail-item">
+                        💰 {app.salary_range}
+                      </span>
+                    )}
+                    {app.location && (
+                      <span className="card-detail-item">
+                        📍 {app.location}
+                      </span>
+                    )}
+                    {app.apply_date && (
+                      <span className="card-detail-item">
+                        📅 {app.apply_date}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="card-footer-row">
+                    {app.company_scale && (
+                      <span className="card-scale">{app.company_scale}</span>
+                    )}
+                    {app.source_platform && (
+                      <span className="card-source">{app.source_platform}</span>
+                    )}
+                  </div>
+                </Link>
+              )
+            })}
           </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {/* 分页 */}
+      {pagination.pages > 1 && (
+        <div className="pagination">
+          <button
+            className="pagination-btn"
+            disabled={pagination.page === 1}
+            onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+          >
+            ‹
+          </button>
+          <span className="pagination-info">
+            {pagination.page} / {pagination.pages}
+          </span>
+          <button
+            className="pagination-btn"
+            disabled={pagination.page === pagination.pages}
+            onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+          >
+            ›
+          </button>
+        </div>
+      )}
     </div>
   )
 }

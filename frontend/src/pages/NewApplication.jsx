@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
 import { 
   BuildingIcon, 
   BriefcaseIcon, 
@@ -14,9 +14,8 @@ import {
   InfoIcon
 } from '../components/Icons'
 
-const API_BASE = '/api'
-
 function NewApplication() {
+  const { api } = useAuth()
   const navigate = useNavigate()
   const { id } = useParams()
   const isEdit = !!id
@@ -56,7 +55,7 @@ function NewApplication() {
 
   const fetchApplication = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/jobs/${id}`)
+      const res = await api.get(`/jobs/${id}`)
       if (res.data.success) {
         setFormData({
           ...res.data.data,
@@ -87,10 +86,10 @@ function NewApplication() {
     setLoading(true)
     try {
       if (isEdit) {
-        await axios.put(`${API_BASE}/jobs/${id}`, formData)
+        await api.put(`/jobs/${id}`, formData)
         alert('更新成功')
       } else {
-        await axios.post(`${API_BASE}/jobs`, formData)
+        await api.post('/jobs', formData)
         alert('创建成功')
       }
       navigate('/applications')
@@ -110,7 +109,7 @@ function NewApplication() {
 
     setCompanyLoading(true)
     try {
-      const res = await axios.get(`${API_BASE}/company/search?name=${encodeURIComponent(formData.company_name)}`)
+      const res = await api.get(`/company/search?name=${encodeURIComponent(formData.company_name)}`)
       if (res.data.success && res.data.data) {
         const info = res.data.data
         setFormData(prev => ({
@@ -150,7 +149,7 @@ function NewApplication() {
     formDataUpload.append('image', file)
 
     try {
-      const res = await axios.post(`${API_BASE}/ocr/recognize`, formDataUpload, {
+      const res = await api.post('/ocr/recognize', formDataUpload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
@@ -494,13 +493,23 @@ function NewApplication() {
           </div>
         </div>
 
-        {/* 操作按钮 */}
-        <div className="card" style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+        {/* 操作按钮 - 桌面端 */}
+        <div className="form-actions-desktop">
           <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
             取消
           </button>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
             <SaveIcon size="sm" />
+            {loading ? '保存中...' : '保存'}
+          </button>
+        </div>
+
+        {/* 操作按钮 - 移动端固定底部 */}
+        <div className="form-actions-mobile">
+          <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary btn-lg">
+            取消
+          </button>
+          <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
             {loading ? '保存中...' : '保存'}
           </button>
         </div>

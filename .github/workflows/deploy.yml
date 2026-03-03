@@ -74,17 +74,24 @@ jobs:
           # 拉取最新镜像
           echo "📋 拉取最新 Docker 镜像..."
           docker pull ${{ secrets.DOCKER_USERNAME }}/job-tracker:latest
+          docker pull postgres:15-alpine
+
+          # 停止旧服务
+          echo "🛑 停止旧服务..."
+          docker-compose -f docker-compose.prod.yml down || true
 
           # 使用 docker-compose 部署
           echo "🚀 启动服务..."
           export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-          docker-compose -f docker-compose.prod.yml up -d --pull always
+          export PG_USER=${{ secrets.PG_USER }}
+          export PG_PASSWORD=${{ secrets.PG_PASSWORD }}
+          docker-compose -f docker-compose.prod.yml up -d
 
           echo "✅ 容器启动成功"
 
           # 等待服务启动
           echo "⏳ 等待服务启动..."
-          sleep 10
+          sleep 15
 
           # 检查容器状态
           echo "📊 检查容器状态..."
@@ -92,12 +99,23 @@ jobs:
 
           # 健康检查
           echo "🧪 执行健康检查..."
-          if curl -s http://localhost:3001/ > /dev/null 2>&1; then
-            echo "✅ 服务健康检查通过"
-          else
-            echo "⚠️ 服务健康检查失败，查看日志..."
-            docker-compose -f docker-compose.prod.yml logs --tail=50
-          fi
+          for i in {1..5}; do
+            if curl -s http://localhost:3001/api/health > /dev/null 2>&1; then
+              echo "✅ 服务健康检查通过"
+              break
+            fi
+            if [ $i -eq 5 ]; then
+              echo "⚠️ 服务健康检查失败，查看日志..."
+              docker-compose -f docker-compose.prod.yml logs --tail=100
+              exit 1
+            fi
+            echo "⏳ 等待服务就绪... ($i/5)"
+            sleep 5
+          done
+
+          # 检查数据库连接
+          echo "📊 检查数据库连接..."
+          docker exec job-tracker-db pg_isready -U ${PG_USER:-postgres} -d jobtracker && echo "✅ 数据库连接正常" || echo "⚠️ 数据库连接异常"
 
           echo ""
           echo "=========================================="

@@ -33,8 +33,8 @@ COPY backend/ ./
 # 从前端构建阶段复制静态文件
 COPY --from=frontend-builder /app/frontend/dist ./public
 
-# 创建数据目录
-RUN mkdir -p /app/data /app/uploads
+# 创建上传目录
+RUN mkdir -p /app/uploads
 
 # 暴露端口
 EXPOSE 3001

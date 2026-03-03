@@ -1,0 +1,405 @@
+{
+  "project_spec": "Job Tracker V2.0 - 多用户求职投递记录平台，支持 GitHub OAuth 登录，数据隔离，移动端优先",
+  "created_at": "2026-03-04T00:20:17.015816",
+  "last_updated": "2026-03-04T05:30:00",
+  "tech_stack": {
+    "language": "JavaScript/TypeScript",
+    "frontend": "React + Vite",
+    "backend": "Node.js + Express",
+    "database": "PostgreSQL",
+    "auth": "GitHub OAuth + JWT"
+  },
+  "modules": {
+    "description": "项目模块",
+    "list": [
+      {
+        "id": "M001",
+        "name": "auth",
+        "description": "用户认证模块",
+        "status": "completed"
+      },
+      {
+        "id": "M002",
+        "name": "database",
+        "description": "数据库模块",
+        "status": "completed"
+      },
+      {
+        "id": "M003",
+        "name": "jobs",
+        "description": "投递记录模块",
+        "status": "completed"
+      },
+      {
+        "id": "M004",
+        "name": "ocr",
+        "description": "AI识图模块",
+        "status": "completed"
+      },
+      {
+        "id": "M005",
+        "name": "frontend",
+        "description": "前端界面模块",
+        "status": "completed"
+      }
+    ]
+  },
+  "total_features": 15,
+  "completed": 14,
+  "in_progress": 0,
+  "pending": 1,
+  "features": [
+    {
+      "id": "F001",
+      "category": "database",
+      "module": "M002",
+      "description": "PostgreSQL 数据库迁移 - 替换 SQLite，创建用户表和投递记录表",
+      "priority": "high",
+      "dependencies": [],
+      "steps": [
+        "安装 pg 依赖",
+        "创建 models/database.js PostgreSQL 连接",
+        "定义 users, job_applications, company_cache, ocr_history 表结构",
+        "创建索引优化查询"
+      ],
+      "acceptance_criteria": [
+        "数据库连接成功",
+        "所有表创建成功",
+        "索引创建成功"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T01:15:00"
+    },
+    {
+      "id": "F002",
+      "category": "auth",
+      "module": "M001",
+      "description": "GitHub OAuth 登录 - 后端 API 实现",
+      "priority": "high",
+      "dependencies": [
+        "F001"
+      ],
+      "steps": [
+        "创建 routes/auth.js 认证路由",
+        "实现 /api/auth/github 重定向",
+        "实现 /api/auth/github/callback 回调处理",
+        "用 code 换取 access_token",
+        "获取 GitHub 用户信息",
+        "创建/更新本地用户记录",
+        "生成 JWT token",
+        "记录登录历史"
+      ],
+      "acceptance_criteria": [
+        "点击登录能跳转到 GitHub 授权页",
+        "授权后能正确回调",
+        "用户信息正确存储到数据库",
+        "返回有效的 JWT token"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T01:15:00"
+    },
+    {
+      "id": "F003",
+      "category": "auth",
+      "module": "M001",
+      "description": "JWT 认证中间件 - 保护需要登录的 API",
+      "priority": "high",
+      "dependencies": [
+        "F002"
+      ],
+      "steps": [
+        "创建 authMiddleware 函数",
+        "验证 Authorization header 中的 token",
+        "解析 userId 并注入到 req 对象",
+        "返回 401 错误处理"
+      ],
+      "acceptance_criteria": [
+        "无 token 时返回 401",
+        "无效 token 时返回 401",
+        "有效 token 时正确解析 userId"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T01:15:00"
+    },
+    {
+      "id": "F004",
+      "category": "jobs",
+      "module": "M003",
+      "description": "投递记录 API 数据隔离 - 所有查询添加 user_id 过滤",
+      "priority": "high",
+      "dependencies": [
+        "F003"
+      ],
+      "steps": [
+        "更新 routes/jobs.js 使用认证中间件",
+        "GET /api/jobs 添加 user_id 过滤",
+        "POST /api/jobs 自动注入 user_id",
+        "PUT /api/jobs/:id 验证所有权",
+        "DELETE /api/jobs/:id 验证所有权",
+        "GET /api/jobs/stats/overview 添加 user_id 过滤"
+      ],
+      "acceptance_criteria": [
+        "用户只能看到自己的投递记录",
+        "无法修改/删除其他用户的记录",
+        "统计数据只计算当前用户的记录"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T01:15:00"
+    },
+    {
+      "id": "F005",
+      "category": "auth",
+      "module": "M001",
+      "description": "前端登录页面 - GitHub OAuth 按钮",
+      "priority": "high",
+      "dependencies": [
+        "F002"
+      ],
+      "steps": [
+        "创建 pages/Login.jsx 登录页面",
+        "添加 GitHub 登录按钮",
+        "处理 OAuth 回调 (token 和 user 信息)",
+        "存储 token 到 localStorage",
+        "创建 AuthContext 管理登录状态"
+      ],
+      "acceptance_criteria": [
+        "未登录时显示登录页面",
+        "点击 GitHub 按钮能跳转授权",
+        "授权成功后能回到应用",
+        "token 正确存储"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T01:15:00"
+    },
+    {
+      "id": "F006",
+      "category": "auth",
+      "module": "M001",
+      "description": "前端登录态管理 - AuthContext 和路由守卫",
+      "priority": "high",
+      "dependencies": [
+        "F005"
+      ],
+      "steps": [
+        "创建 contexts/AuthContext.jsx",
+        "实现 useAuth hook",
+        "提供 user, token, login, logout 方法",
+        "应用启动时检查 token 有效性",
+        "创建 ProtectedRoute 组件"
+      ],
+      "acceptance_criteria": [
+        "刷新页面后登录态保持",
+        "token 过期后自动跳转登录",
+        "所有页面都能获取用户信息"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T01:15:00"
+    },
+    {
+      "id": "F007",
+      "category": "frontend",
+      "module": "M005",
+      "description": "前端 API 请求添加认证头",
+      "priority": "high",
+      "dependencies": [
+        "F006"
+      ],
+      "steps": [
+        "创建 axios 实例配置拦截器",
+        "自动添加 Authorization header",
+        "处理 401 响应自动跳转登录",
+        "更新所有 API 调用使用新实例"
+      ],
+      "acceptance_criteria": [
+        "所有 API 请求都带 token",
+        "401 时能正确处理"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T01:15:00"
+    },
+    {
+      "id": "F008",
+      "category": "frontend",
+      "module": "M005",
+      "description": "移动端适配 - 底部导航栏",
+      "priority": "high",
+      "dependencies": [
+        "F005"
+      ],
+      "steps": [
+        "创建 components/MobileNav.jsx 底部导航",
+        "响应式布局：桌面侧边栏，手机底部栏",
+        "导航项目：仪表盘、投递记录、新建、我的",
+        "大触摸区域按钮"
+      ],
+      "acceptance_criteria": [
+        "桌面端显示侧边栏",
+        "手机端显示底部导航",
+        "导航项目正确高亮"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T03:30:00"
+    },
+    {
+      "id": "F009",
+      "category": "frontend",
+      "module": "M005",
+      "description": "移动端适配 - 表单优化",
+      "priority": "high",
+      "dependencies": [
+        "F008"
+      ],
+      "steps": [
+        "新建/编辑表单移动端优化",
+        "分步表单或卡片式布局",
+        "输入框大触摸区域",
+        "选择器改为原生 select",
+        "优化图片上传体验"
+      ],
+      "acceptance_criteria": [
+        "手机上表单易于填写",
+        "所有输入控件可用"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T03:35:00"
+    },
+    {
+      "id": "F010",
+      "category": "frontend",
+      "module": "M005",
+      "description": "移动端适配 - 列表卡片化",
+      "priority": "medium",
+      "dependencies": [
+        "F008"
+      ],
+      "steps": [
+        "投递记录列表移动端改为卡片",
+        "每条记录显示关键信息",
+        "滑动操作或长按菜单",
+        "下拉刷新支持"
+      ],
+      "acceptance_criteria": [
+        "手机上列表清晰可读",
+        "操作便捷"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T03:35:00"
+    },
+    {
+      "id": "F011",
+      "category": "frontend",
+      "module": "M005",
+      "description": "用户个人中心页面",
+      "priority": "medium",
+      "dependencies": [
+        "F006"
+      ],
+      "steps": [
+        "创建 pages/Profile.jsx",
+        "显示用户头像、昵称、邮箱",
+        "显示统计数据",
+        "登出按钮",
+        "删除账号功能 (可选)"
+      ],
+      "acceptance_criteria": [
+        "能查看自己的信息",
+        "能正常登出"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T03:30:00"
+    },
+    {
+      "id": "F012",
+      "category": "ocr",
+      "module": "M004",
+      "description": "OCR API 用户隔离",
+      "priority": "medium",
+      "dependencies": [
+        "F003"
+      ],
+      "steps": [
+        "routes/ocr.js 添加认证中间件",
+        "OCR 历史记录关联 user_id",
+        "识图结果可选关联到投递记录"
+      ],
+      "acceptance_criteria": [
+        "只能看到自己的 OCR 历史"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T01:15:00"
+    },
+    {
+      "id": "F013",
+      "category": "deploy",
+      "module": "M002",
+      "description": "生产环境配置 - PostgreSQL 连接",
+      "priority": "medium",
+      "dependencies": [
+        "F001",
+        "F004"
+      ],
+      "steps": [
+        "更新 docker-compose.yml 添加 PostgreSQL 服务",
+        "配置环境变量",
+        "更新 GitHub Actions 部署脚本",
+        "添加数据库初始化脚本"
+      ],
+      "acceptance_criteria": [
+        "生产环境能连接 PostgreSQL",
+        "数据持久化"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T05:30:00"
+    },
+    {
+      "id": "F014",
+      "category": "deploy",
+      "module": "M002",
+      "description": "GitHub OAuth 生产配置",
+      "priority": "medium",
+      "dependencies": [
+        "F002",
+        "F013"
+      ],
+      "steps": [
+        "创建生产环境 GitHub OAuth App",
+        "配置回调 URL",
+        "更新生产环境变量",
+        "测试完整登录流程",
+        "配置 GitHub OAuth callback URL: http://150.109.254.228:3001/api/login/githubCallBack",
+        "配置 GitHub OAuth 首页 URL: http://150.109.254.228:3001/",
+        "配置 GitHub OAuth Client ID：Ov23lizjBhn9fdONwo6f 和 Client Secret： 1e2177fd00e262e0d3bc840bfc49745b77b5a793"
+      ],
+      "acceptance_criteria": [
+        "生产环境 GitHub 登录正常",
+        "回调 URL 正确"
+      ],
+      "passes": true,
+      "completed_at": "2026-03-04T05:30:00"
+    },
+    {
+      "id": "F015",
+      "category": "test",
+      "module": "M001",
+      "description": "端到端测试 - 登录和投递流程",
+      "priority": "low",
+      "dependencies": [
+        "F004",
+        "F007",
+        "F008"
+      ],
+      "steps": [
+        "测试新用户 GitHub 登录",
+        "测试创建投递记录",
+        "测试编辑投递记录",
+        "测试删除投递记录",
+        "测试数据隔离 (多用户)"
+      ],
+      "acceptance_criteria": [
+        "所有流程无报错",
+        "数据正确隔离"
+      ],
+      "passes": false
+    }
+  ]
+}
