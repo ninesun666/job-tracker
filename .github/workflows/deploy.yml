@@ -31,7 +31,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/ninesun6666/${{ env.IMAGE_NAME }}
         tags: |
           type=sha,prefix=
           type=ref,event=branch
@@ -99,7 +99,7 @@ jobs:
 
           # 拉取最新镜像
           echo "📋 拉取最新 Docker 镜像..."
-          docker pull ${{ secrets.DOCKER_USERNAME }}/job-tracker:latest
+          docker pull ninesun6666/job-tracker:latest
           docker pull postgres:15-alpine
 
           # 停止旧服务
@@ -108,7 +108,7 @@ jobs:
 
           # 使用 docker compose 部署
           echo "🚀 启动服务..."
-          export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+          export DOCKER_USERNAME=ninesun6666
           export PG_USER=${{ secrets.PG_USER }}
           export PG_PASSWORD=${{ secrets.PG_PASSWORD }}
           docker compose -f docker-compose.prod.yml up -d
