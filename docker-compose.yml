@@ -1,0 +1,17 @@
+services:
+  job-tracker:
+    build: .
+    container_name: job-tracker
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - OCR_PROVIDER=qwen
+      - LLM_API_URL=${LLM_API_URL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-glm-5}
+    restart: unless-stopped
