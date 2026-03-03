@@ -78,14 +78,14 @@ jobs:
 
           # 停止旧服务
           echo "🛑 停止旧服务..."
-          docker-compose -f docker-compose.prod.yml down || true
+          docker compose -f docker-compose.prod.yml down || true
 
-          # 使用 docker-compose 部署
+          # 使用 docker compose 部署
           echo "🚀 启动服务..."
           export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
           export PG_USER=${{ secrets.PG_USER }}
           export PG_PASSWORD=${{ secrets.PG_PASSWORD }}
-          docker-compose -f docker-compose.prod.yml up -d
+          docker compose -f docker-compose.prod.yml up -d
 
           echo "✅ 容器启动成功"
 
@@ -95,7 +95,7 @@ jobs:
 
           # 检查容器状态
           echo "📊 检查容器状态..."
-          docker-compose -f docker-compose.prod.yml ps
+          docker compose -f docker-compose.prod.yml ps
 
           # 健康检查
           echo "🧪 执行健康检查..."
@@ -106,7 +106,7 @@ jobs:
             fi
             if [ $i -eq 5 ]; then
               echo "⚠️ 服务健康检查失败，查看日志..."
-              docker-compose -f docker-compose.prod.yml logs --tail=100
+              docker compose -f docker-compose.prod.yml logs --tail=100
               exit 1
             fi
             echo "⏳ 等待服务就绪... ($i/5)"
