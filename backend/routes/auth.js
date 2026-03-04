@@ -14,8 +14,8 @@ const JWT_EXPIRES = '7d';
 // GitHub OAuth 配置
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
-const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || 'http://localhost:3001/api/auth/github/callback';
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+const GITHUB_CALLBACK_URL = process.env.GITHUB_CALLBACK_URL || 'https://jobs.ninesun.site/api/login/githubCallBack';
+const CLIENT_URL = process.env.CLIENT_URL || 'https://jobs.ninesun.site';
 
 /**
  * GET /api/auth/github
