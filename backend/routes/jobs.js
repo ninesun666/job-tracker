@@ -212,8 +212,8 @@ router.get('/stats/overview', async (req, res) => {
       interviewing: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND status = 'interviewing'", [userId]))?.count || 0,
       offered: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND status = 'offered'", [userId]))?.count || 0,
       rejected: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND status = 'rejected'", [userId]))?.count || 0,
-      thisWeek: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND date(apply_date) >= date('now', '-7 days')", [userId]))?.count || 0,
-      thisMonth: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND date(apply_date) >= date('now', '-30 days')", [userId]))?.count || 0
+      thisWeek: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND apply_date >= CURRENT_DATE - INTERVAL '7 days'", [userId]))?.count || 0,
+      thisMonth: (await get("SELECT COUNT(*) as count FROM job_applications WHERE user_id = $1 AND apply_date >= CURRENT_DATE - INTERVAL '30 days'", [userId]))?.count || 0
     };
     
     res.json({ success: true, data: stats });
