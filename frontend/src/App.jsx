@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import Dashboard from './pages/Dashboard'
 import Applications from './pages/Applications'
 import NewApplication from './pages/NewApplication'
@@ -145,7 +146,7 @@ function AppLayout() {
             )}
             <div className="user-details">
               <span className="user-name">{user?.name || user?.github_username || '用户'}</span>
-              <span className="user-email">{user?.email}</span>
+              <span className="user-email" style={{ color: 'rgba(255,255,255,0.85)' }}>{user?.email}</span>
             </div>
           </div>
           <button className="logout-btn" onClick={logout} title="登出">
@@ -197,24 +198,26 @@ function AppLayout() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          {/* 公共路由 */}
-          <Route path="/login" element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          } />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          
-          {/* 受保护路由 */}
-          <Route path="/*" element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Routes>
+            {/* 公共路由 */}
+            <Route path="/login" element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            
+            {/* 受保护路由 */}
+            <Route path="/*" element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   )
 }
