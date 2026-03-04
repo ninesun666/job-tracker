@@ -150,8 +150,7 @@ router.get('/githubCallBack', async (req, res) => {
         // 创建新用户
         const result = await run(
           `INSERT INTO users (github_id, github_username, name, email, avatar, provider, last_login)
-           VALUES ($1, $2, $3, $4, $5, 'github', CURRENT_TIMESTAMP)
-           RETURNING id`,
+           VALUES ($1, $2, $3, $4, $5, 'github', CURRENT_TIMESTAMP)`,
           [githubUser.id, githubUser.login, githubUser.name || githubUser.login, primaryEmail, githubUser.avatar_url]
         );
         user = await get('SELECT * FROM users WHERE id = $1', [result.lastInsertRowid]);

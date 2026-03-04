@@ -1,13 +1,14 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { 
-  LayoutDashboard, 
-  Briefcase, 
-  ScanLine, 
+import {
+  LayoutDashboard,
+  Briefcase,
+  ScanLine,
   BarChart3,
   Menu,
   X
 } from 'lucide-react'
 import { useState } from 'react'
+import { useAuth } from '../contexts/AuthContext'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '仪表盘', end: true },
@@ -18,6 +19,7 @@ const navItems = [
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { user, logout } = useAuth()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -84,16 +86,37 @@ export default function Layout() {
       <div className="lg:ml-64">
         {/* 顶部栏 */}
         <header className="h-16 bg-white shadow-sm flex items-center px-4 lg:px-6">
-          <button 
+          <button
             className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="w-6 h-6" />
           </button>
           <div className="ml-auto flex items-center gap-4">
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-gray-500 hidden sm:inline">
               面试投递记录平台
             </span>
+            {/* 用户信息 */}
+            <div className="flex items-center gap-3">
+              <img
+                src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=3370ff&color=fff`}
+                alt={user?.name}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <div className="hidden sm:flex flex-col">
+                <span className="text-sm font-medium text-gray-700">{user?.name || '用户'}</span>
+                <span className="text-xs text-gray-400">{user?.email || ''}</span>
+              </div>
+              <button
+                onClick={logout}
+                className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600"
+                title="退出登录"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
           </div>
         </header>
 
