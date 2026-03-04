@@ -12,6 +12,7 @@ import {
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { JobTrackerLogo } from './Icons'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '仪表盘', end: true },
@@ -45,9 +46,10 @@ export default function Layout() {
       `}>
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-[var(--border-light)]">
-          <h1 className="text-xl font-bold text-[var(--primary)]">
-            📋 Job Tracker
-          </h1>
+          <div className="flex items-center gap-2">
+            <JobTrackerLogo size="lg" className="text-[var(--primary)]" />
+            <span className="text-lg font-bold text-[var(--text-primary)]">Job Tracker</span>
+          </div>
           <button 
             className="lg:hidden p-2 hover:bg-[var(--bg-hover)] rounded-lg text-[var(--text-secondary)]"
             onClick={() => setSidebarOpen(false)}

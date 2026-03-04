@@ -375,7 +375,7 @@ export const ArrowLeftIcon = createIcon(
 
 // ==================== Logo ====================
 
-// Logo 图标
+// Logo 图标 - 求职追踪主题
 export const LogoIcon = ({ size = 'lg', color = 'white', style, ...props }) => {
   const iconSize = sizes[size] || size
   return (
@@ -386,10 +386,79 @@ export const LogoIcon = ({ size = 'lg', color = 'white', style, ...props }) => {
       style={{ ...baseStyle, color, ...style }}
       {...props}
     >
-      <rect width="32" height="32" rx="8" fill="currentColor" />
+      {/* 圆角矩形背景 */}
+      <rect width="32" height="32" rx="8" fill="url(#logoGradient)" />
+      
+      {/* 渐变定义 */}
+      <defs>
+        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#3370ff" />
+          <stop offset="100%" stopColor="#5583ff" />
+        </linearGradient>
+      </defs>
+      
+      {/* 简历/文档主体 */}
+      <rect x="7" y="5" width="18" height="22" rx="2" fill="white" opacity="0.95" />
+      
+      {/* 文档折角 */}
+      <path d="M19 5 L25 5 L25 11 Z" fill="white" opacity="0.7" />
+      <path d="M19 5 L19 11 L25 11" fill="#3370ff" opacity="0.3" />
+      
+      {/* 人物头像圆圈 */}
+      <circle cx="16" cy="11" r="2.5" fill="#3370ff" opacity="0.8" />
+      
+      {/* 文档内容线条 */}
+      <rect x="10" y="15" width="12" height="1.5" rx="0.75" fill="#3370ff" opacity="0.4" />
+      <rect x="10" y="18" width="8" height="1.5" rx="0.75" fill="#3370ff" opacity="0.3" />
+      
+      {/* 勾选标记 - 表示追踪/完成 */}
+      <circle cx="24" cy="24" r="6" fill="#00b578" />
       <path 
-        d="M8 10h16v2H8zM8 15h12v2H8zM8 20h14v2H8z" 
-        fill="white"
+        d="M21 24 L23.5 26.5 L27 22" 
+        stroke="white" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  )
+}
+
+// 简化版 Logo - 用于侧边栏
+export const JobTrackerLogo = ({ size = 'md', style, ...props }) => {
+  const iconSize = sizes[size] || size
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={iconSize}
+      height={iconSize}
+      style={{ ...baseStyle, ...style }}
+      {...props}
+    >
+      {/* 简历文档 */}
+      <rect x="3" y="2" width="14" height="18" rx="2" fill="currentColor" opacity="0.9" />
+      
+      {/* 折角 */}
+      <path d="M13 2 L17 2 L17 6 Z" fill="white" opacity="0.5" />
+      <path d="M13 2 L13 6 L17 6" fill="currentColor" opacity="0.3" />
+      
+      {/* 头像 */}
+      <circle cx="10" cy="7" r="2" fill="white" opacity="0.9" />
+      
+      {/* 内容线 */}
+      <rect x="6" y="10" width="8" height="1" rx="0.5" fill="white" opacity="0.5" />
+      <rect x="6" y="12.5" width="5" height="1" rx="0.5" fill="white" opacity="0.4" />
+      
+      {/* 勾选徽章 */}
+      <circle cx="17" cy="17" r="5" fill="#00b578" />
+      <path 
+        d="M14.5 17 L16.5 19 L19.5 15.5" 
+        stroke="white" 
+        strokeWidth="1.5" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+        fill="none"
       />
     </svg>
   )

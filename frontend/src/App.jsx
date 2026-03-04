@@ -14,6 +14,7 @@ import {
   ListIcon, 
   PlusIcon, 
   LogoIcon,
+  JobTrackerLogo,
   GithubIcon,
   UserIcon,
   MenuIcon,
@@ -107,7 +108,7 @@ function AppLayout() {
       <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
-            <LogoIcon size="md" style={{ color: 'white' }} />
+            <JobTrackerLogo size="md" />
             <span>面试记录</span>
           </div>
           {isMobile && (
