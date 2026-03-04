@@ -30,14 +30,34 @@ services:
       - "3001:3001"
     volumes:
       - ./uploads:/app/uploads
-      - ./.env:/app/.env:ro
     environment:
+      # 运行环境
       - NODE_ENV=production
+      - PORT=3001
+      
+      # 数据库配置
       - PG_HOST=postgres
       - PG_PORT=5432
       - PG_DATABASE=jobtracker
       - PG_USER=${PG_USER:-postgres}
       - PG_PASSWORD=${PG_PASSWORD:?PG_PASSWORD is required}
+      
+      # JWT 配置
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      
+      # GitHub OAuth
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:?GITHUB_CLIENT_ID is required}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:?GITHUB_CLIENT_SECRET is required}
+      - GITHUB_CALLBACK_URL=${GITHUB_CALLBACK_URL}
+      - CLIENT_URL=${CLIENT_URL}
+      
+      # OCR 服务
+      - OCR_PROVIDER=${OCR_PROVIDER:-qwen}
+      - LLM_API_URL=${LLM_API_URL}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-glm-5}
+      - GLM_API_KEY=${GLM_API_KEY}
+      - GLM_MODEL=${GLM_MODEL:-glm-4v-flash}
     depends_on:
       postgres:
         condition: service_healthy
