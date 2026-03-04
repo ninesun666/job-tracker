@@ -9,7 +9,7 @@ import axios from 'axios';
 const AuthContext = createContext(null);
 
 // API 基础 URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://jobs.ninesun.site/api';
 
 // 创建 axios 实例
 const api = axios.create({
