@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { 
@@ -46,6 +46,19 @@ function NewApplication() {
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrPreview, setOcrPreview] = useState(null)
   const [companyLoading, setCompanyLoading] = useState(false)
+  const uploadAreaRef = useRef(null)
+
+  // 模态框打开时自动聚焦上传区域，支持剪贴板粘贴
+  useEffect(() => {
+    if (showOcrModal && uploadAreaRef.current) {
+      setTimeout(() => uploadAreaRef.current?.focus(), 100)
+    }
+    // 模态框关闭时重置状态
+    if (!showOcrModal) {
+      setOcrPreview(null)
+      setOcrLoading(false)
+    }
+  }, [showOcrModal])
 
   useEffect(() => {
     if (isEdit) {
@@ -131,10 +144,11 @@ function NewApplication() {
     }
   }
 
-  // 图片上传处理
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+  // 图片处理核心函数
+  const processImageFile = async (file) => {
+    if (!file || !file.type.startsWith('image/')) {
+      return
+    }
 
     // 预览图片
     const reader = new FileReader()
@@ -190,6 +204,43 @@ function NewApplication() {
     } finally {
       setOcrLoading(false)
     }
+  }
+
+  // 文件选择上传
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      await processImageFile(file)
+    }
+  }
+
+  // 剪贴板粘贴
+  const handlePaste = async (e) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    
+    for (let item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile()
+        if (file) {
+          await processImageFile(file)
+        }
+        break
+      }
+    }
+  }
+
+  // 拖拽处理
+  const handleDrop = async (e) => {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file && file.type.startsWith('image/')) {
+      await processImageFile(file)
+    }
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
   }
 
   const scaleOptions = ['0-50人', '50-150人', '150-500人', '500-1000人', '1000-5000人', '5000人以上']
@@ -534,14 +585,23 @@ function NewApplication() {
             </div>
             
             <div className="modal-body">
-              <div className="upload-area" onClick={() => document.getElementById('imageInput').click()}>
+              <div 
+                ref={uploadAreaRef}
+                className="upload-area" 
+                onClick={() => document.getElementById('imageInput').click()}
+                onPaste={handlePaste}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                tabIndex={0}
+                style={{ outline: 'none', cursor: 'pointer' }}
+              >
                 {ocrPreview ? (
                   <img src={ocrPreview} alt="预览" style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8 }} />
                 ) : (
                   <>
                     <UploadIcon size="xl" style={{ color: 'var(--text-placeholder)', marginBottom: 12 }} />
-                    <div className="upload-text">点击上传招聘截图</div>
-                    <div className="upload-hint">支持 JPG、PNG 格式，最大 10MB</div>
+                    <div className="upload-text">点击上传、粘贴或拖拽图片</div>
+                    <div className="upload-hint">支持 Ctrl+V 粘贴截图，JPG、PNG 格式</div>
                   </>
                 )}
               </div>
