@@ -122,31 +122,52 @@ function getLLMProvider() {
  * 需要登录
  */
 router.post('/recognize', authMiddleware, upload.single('image'), async (req, res) => {
+  const requestId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const startTime = Date.now();
+  
+  console.log(`[${requestId}] ========== OCR 请求开始 ==========`);
+  console.log(`[${requestId}] 用户ID: ${req.userId}`);
+  console.log(`[${requestId}] 文件信息: ${req.file ? `${req.file.originalname} (${(req.file.size / 1024).toFixed(2)}KB, ${req.file.mimetype})` : '无文件'}`);
+  
   try {
     if (!req.file) {
+      console.log(`[${requestId}] 错误: 未上传图片`);
       return res.status(400).json({ success: false, error: '请上传图片' });
     }
 
+    const step1Start = Date.now();
     const imagePath = req.file.path;
     const imageBase64 = fs.readFileSync(imagePath, { encoding: 'base64' });
     const mimeType = req.file.mimetype;
+    console.log(`[${requestId}] 步骤1 - 读取图片完成, 耗时: ${Date.now() - step1Start}ms, Base64长度: ${imageBase64.length}`);
 
     const provider = getOCRProvider();
+    console.log(`[${requestId}] 使用 OCR 提供商: ${provider || '未配置'}`);
     
+    if (!provider) {
+      console.log(`[${requestId}] 错误: 未配置 OCR 服务`);
+      return res.json({
+        success: false,
+        error: '未配置 OCR 服务',
+        data: getDefaultResult('请配置 LLM_API_KEY')
+      });
+    }
+    
+    const step2Start = Date.now();
     let result;
     
     switch (provider) {
       case 'qwen':
-        result = await recognizeWithQwen(imageBase64, mimeType);
+        result = await recognizeWithQwen(imageBase64, mimeType, requestId);
         break;
       case 'glm':
-        result = await recognizeWithGLM(imageBase64, mimeType);
+        result = await recognizeWithGLM(imageBase64, mimeType, requestId);
         break;
       case 'claude':
-        result = await recognizeWithClaude(imageBase64, mimeType);
+        result = await recognizeWithClaude(imageBase64, mimeType, requestId);
         break;
       case 'openai':
-        result = await recognizeWithOpenAI(imageBase64, mimeType);
+        result = await recognizeWithOpenAI(imageBase64, mimeType, requestId);
         break;
       default:
         result = {
@@ -155,35 +176,46 @@ router.post('/recognize', authMiddleware, upload.single('image'), async (req, re
           data: getDefaultResult('请配置 LLM_API_KEY')
         };
     }
+    console.log(`[${requestId}] 步骤2 - OCR 识别完成, 耗时: ${Date.now() - step2Start}ms, 成功: ${result.success}`);
 
     // 识别成功后，查询公司背景信息
     if (result.success && result.data?.company_name) {
-      const companyNotes = await queryCompanyBackground(result.data.company_name);
+      const step3Start = Date.now();
+      console.log(`[${requestId}] 步骤3 - 查询公司背景: ${result.data.company_name}`);
+      const companyNotes = await queryCompanyBackground(result.data.company_name, requestId);
       if (companyNotes) {
         result.data.company_notes = companyNotes;
       }
+      console.log(`[${requestId}] 步骤3 - 公司背景查询完成, 耗时: ${Date.now() - step3Start}ms`);
     }
 
     // 保存识别历史（关联用户）
+    const step4Start = Date.now();
     try {
       await run(`
         INSERT INTO ocr_history (user_id, image_path, recognized_text, extracted_info)
         VALUES ($1, $2, $3, $4)
       `, [req.userId, imagePath, JSON.stringify(result.data?.rawResponse || ''), JSON.stringify(result.data)]);
+      console.log(`[${requestId}] 步骤4 - 保存历史完成, 耗时: ${Date.now() - step4Start}ms`);
     } catch (e) {
-      console.error('Failed to save OCR history:', e);
+      console.error(`[${requestId}] 保存历史失败:`, e);
     }
 
+    const totalTime = Date.now() - startTime;
+    console.log(`[${requestId}] ========== OCR 请求完成, 总耗时: ${totalTime}ms ==========`);
+    
     res.json({ 
       success: result.success,
       data: result.data,
       error: result.error,
       provider,
-      imagePath: `/uploads/${path.basename(imagePath)}`
+      imagePath: `/uploads/${path.basename(imagePath)}`,
+      _debug: { requestId, totalTime, provider }
     });
   } catch (err) {
-    console.error('OCR error:', err);
-    res.status(500).json({ success: false, error: err.message });
+    const totalTime = Date.now() - startTime;
+    console.error(`[${requestId}] OCR 错误, 耗时: ${totalTime}ms:`, err);
+    res.status(500).json({ success: false, error: err.message, _debug: { requestId, totalTime } });
   }
 });
 
@@ -191,9 +223,15 @@ router.post('/recognize', authMiddleware, upload.single('image'), async (req, re
  * 查询公司背景信息
  * 使用 LLM 分析公司是否为大厂子公司/外包等
  */
-async function queryCompanyBackground(companyName) {
+async function queryCompanyBackground(companyName, requestId = 'no-id') {
+  const stepStart = Date.now();
   const llmProvider = getLLMProvider();
-  if (!llmProvider) return null;
+  if (!llmProvider) {
+    console.log(`[${requestId}] 公司背景查询: 无可用 LLM 提供商`);
+    return null;
+  }
+
+  console.log(`[${requestId}] 公司背景查询: 使用 ${llmProvider} 提供商`);
 
   const prompt = `请分析"${companyName}"这家公司的背景信息，回答以下问题：
 1. 这家公司是否是知名大厂的子公司或关联公司？如果是，请说明母公司是谁。
@@ -218,6 +256,9 @@ async function queryCompanyBackground(companyName) {
       model = 'glm-4-flash';
     }
 
+    console.log(`[${requestId}] 公司背景查询: 发起 API 请求 -> ${apiUrl}`);
+    const fetchStart = Date.now();
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -231,14 +272,20 @@ async function queryCompanyBackground(companyName) {
       })
     });
 
+    console.log(`[${requestId}] 公司背景查询: API 响应状态 ${response.status}, 耗时 ${Date.now() - fetchStart}ms`);
+
     if (response.ok) {
       const data = await response.json();
       if (data.choices && data.choices[0]?.message?.content) {
+        console.log(`[${requestId}] 公司背景查询: 成功获取结果, 总耗时 ${Date.now() - stepStart}ms`);
         return data.choices[0].message.content;
       }
+    } else {
+      const errorText = await response.text();
+      console.error(`[${requestId}] 公司背景查询: API 错误 ${response.status} - ${errorText}`);
     }
   } catch (err) {
-    console.error('Company background query error:', err);
+    console.error(`[${requestId}] 公司背景查询异常, 耗时 ${Date.now() - stepStart}ms:`, err);
   }
   
   return null;
@@ -267,10 +314,16 @@ function getDefaultResult(note = '') {
 /**
  * 使用通义千问 VL / GLM API 识别 (OpenAI 兼容格式)
  */
-async function recognizeWithQwen(imageBase64, mimeType) {
+async function recognizeWithQwen(imageBase64, mimeType, requestId = 'no-id') {
+  const stepStart = Date.now();
   const apiKey = process.env.LLM_API_KEY;
   const apiUrl = process.env.LLM_API_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions';
   const model = process.env.LLM_MODEL || 'qwen-vl-plus';
+  
+  console.log(`[${requestId}] Qwen OCR: 开始识别`);
+  console.log(`[${requestId}] Qwen OCR: API URL = ${apiUrl}`);
+  console.log(`[${requestId}] Qwen OCR: Model = ${model}`);
+  console.log(`[${requestId}] Qwen OCR: 图片大小 = ${(imageBase64.length / 1024).toFixed(2)}KB`);
   
   const prompt = `请识别这张招聘截图，提取以下信息并以JSON格式返回：
 1. company_name: 公司名称
@@ -294,6 +347,10 @@ async function recognizeWithQwen(imageBase64, mimeType) {
 
   try {
     const fetch = require('node-fetch');
+    
+    console.log(`[${requestId}] Qwen OCR: 发起 API 请求...`);
+    const fetchStart = Date.now();
+    
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -313,9 +370,11 @@ async function recognizeWithQwen(imageBase64, mimeType) {
       })
     });
 
+    console.log(`[${requestId}] Qwen OCR: API 响应状态 = ${response.status}, 耗时 ${Date.now() - fetchStart}ms`);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Qwen API error:', response.status, errorText);
+      console.error(`[${requestId}] Qwen OCR: API 错误 ${response.status} - ${errorText}`);
       return {
         success: false,
         error: `API 错误: ${response.status} - ${errorText}`,
@@ -323,11 +382,16 @@ async function recognizeWithQwen(imageBase64, mimeType) {
       };
     }
 
+    const parseStart = Date.now();
     const data = await response.json();
+    console.log(`[${requestId}] Qwen OCR: JSON 解析完成, 耗时 ${Date.now() - parseStart}ms`);
     
     if (data.choices && data.choices[0] && data.choices[0].message) {
       const content = data.choices[0].message.content;
       const parsed = parseJsonResponse(content);
+      
+      console.log(`[${requestId}] Qwen OCR: 识别成功, 总耗时 ${Date.now() - stepStart}ms`);
+      console.log(`[${requestId}] Qwen OCR: Token 使用 - prompt: ${data.usage?.prompt_tokens}, completion: ${data.usage?.completion_tokens}`);
       
       return {
         success: true,
@@ -341,9 +405,10 @@ async function recognizeWithQwen(imageBase64, mimeType) {
       };
     }
     
+    console.error(`[${requestId}] Qwen OCR: 响应格式异常, 总耗时 ${Date.now() - stepStart}ms`);
     return { success: false, error: '响应格式异常', data: getDefaultResult('识别结果解析失败') };
   } catch (err) {
-    console.error('Qwen VL error:', err);
+    console.error(`[${requestId}] Qwen OCR 异常, 耗时 ${Date.now() - stepStart}ms:`, err);
     return { success: false, error: err.message, data: getDefaultResult('识别过程中发生错误') };
   }
 }
@@ -351,10 +416,16 @@ async function recognizeWithQwen(imageBase64, mimeType) {
 /**
  * 使用智谱 GLM API 识别
  */
-async function recognizeWithGLM(imageBase64, mimeType) {
+async function recognizeWithGLM(imageBase64, mimeType, requestId = 'no-id') {
+  const stepStart = Date.now();
   const apiKey = process.env.GLM_API_KEY;
   const apiUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
   const model = process.env.GLM_MODEL || 'glm-4v-flash';
+  
+  console.log(`[${requestId}] GLM OCR: 开始识别`);
+  console.log(`[${requestId}] GLM OCR: API URL = ${apiUrl}`);
+  console.log(`[${requestId}] GLM OCR: Model = ${model}`);
+  console.log(`[${requestId}] GLM OCR: 图片大小 = ${(imageBase64.length / 1024).toFixed(2)}KB`);
   
   const prompt = `请识别这张招聘截图，提取以下信息并以JSON格式返回：
 1. company_name: 公司名称
@@ -372,6 +443,10 @@ async function recognizeWithGLM(imageBase64, mimeType) {
 
   try {
     const fetch = require('node-fetch');
+    
+    console.log(`[${requestId}] GLM OCR: 发起 API 请求...`);
+    const fetchStart = Date.now();
+    
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -391,8 +466,11 @@ async function recognizeWithGLM(imageBase64, mimeType) {
       })
     });
 
+    console.log(`[${requestId}] GLM OCR: API 响应状态 = ${response.status}, 耗时 ${Date.now() - fetchStart}ms`);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`[${requestId}] GLM OCR: API 错误 ${response.status} - ${errorText}`);
       return {
         success: false,
         error: `GLM API 错误: ${response.status}`,
@@ -400,11 +478,17 @@ async function recognizeWithGLM(imageBase64, mimeType) {
       };
     }
 
+    const parseStart = Date.now();
     const data = await response.json();
+    console.log(`[${requestId}] GLM OCR: JSON 解析完成, 耗时 ${Date.now() - parseStart}ms`);
     
     if (data.choices && data.choices[0]?.message?.content) {
       const content = data.choices[0].message.content;
       const parsed = parseJsonResponse(content);
+      
+      console.log(`[${requestId}] GLM OCR: 识别成功, 总耗时 ${Date.now() - stepStart}ms`);
+      console.log(`[${requestId}] GLM OCR: Token 使用 - prompt: ${data.usage?.prompt_tokens}, completion: ${data.usage?.completion_tokens}`);
+      
       return {
         success: true,
         data: {
@@ -415,8 +499,10 @@ async function recognizeWithGLM(imageBase64, mimeType) {
       };
     }
     
+    console.error(`[${requestId}] GLM OCR: 响应格式异常, 总耗时 ${Date.now() - stepStart}ms`);
     return { success: false, error: 'GLM 响应解析失败', data: getDefaultResult() };
   } catch (err) {
+    console.error(`[${requestId}] GLM OCR 异常, 耗时 ${Date.now() - stepStart}ms:`, err);
     return { success: false, error: err.message, data: getDefaultResult() };
   }
 }
@@ -424,9 +510,16 @@ async function recognizeWithGLM(imageBase64, mimeType) {
 /**
  * 使用 Claude Vision API 识别
  */
-async function recognizeWithClaude(imageBase64, mimeType) {
+async function recognizeWithClaude(imageBase64, mimeType, requestId = 'no-id') {
+  const stepStart = Date.now();
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const apiUrl = 'https://api.anthropic.com/v1/messages';
+  const model = process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+  
+  console.log(`[${requestId}] Claude OCR: 开始识别`);
+  console.log(`[${requestId}] Claude OCR: API URL = ${apiUrl}`);
+  console.log(`[${requestId}] Claude OCR: Model = ${model}`);
+  console.log(`[${requestId}] Claude OCR: 图片大小 = ${(imageBase64.length / 1024).toFixed(2)}KB`);
   
   const mediaType = mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
   const prompt = `请识别这张招聘截图，提取以下信息并以JSON格式返回：
@@ -442,6 +535,10 @@ async function recognizeWithClaude(imageBase64, mimeType) {
   
   try {
     const fetch = require('node-fetch');
+    
+    console.log(`[${requestId}] Claude OCR: 发起 API 请求...`);
+    const fetchStart = Date.now();
+    
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -450,7 +547,7 @@ async function recognizeWithClaude(imageBase64, mimeType) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
+        model: model,
         max_tokens: 2000,
         messages: [{
           role: 'user',
@@ -465,16 +562,26 @@ async function recognizeWithClaude(imageBase64, mimeType) {
       })
     });
 
+    console.log(`[${requestId}] Claude OCR: API 响应状态 = ${response.status}, 耗时 ${Date.now() - fetchStart}ms`);
+
+    const parseStart = Date.now();
     const data = await response.json();
+    console.log(`[${requestId}] Claude OCR: JSON 解析完成, 耗时 ${Date.now() - parseStart}ms`);
     
     if (data.content && data.content[0]) {
       const content = data.content[0].text;
       const parsed = parseJsonResponse(content);
+      
+      console.log(`[${requestId}] Claude OCR: 识别成功, 总耗时 ${Date.now() - stepStart}ms`);
+      console.log(`[${requestId}] Claude OCR: Token 使用 - input: ${data.usage?.input_tokens}, output: ${data.usage?.output_tokens}`);
+      
       return { success: true, data: { ...getDefaultResult(), ...parsed } };
     }
     
+    console.error(`[${requestId}] Claude OCR: 响应格式异常, 总耗时 ${Date.now() - stepStart}ms`);
     return { success: false, error: 'Claude 解析失败', data: getDefaultResult() };
   } catch (err) {
+    console.error(`[${requestId}] Claude OCR 异常, 耗时 ${Date.now() - stepStart}ms:`, err);
     return { success: false, error: err.message, data: getDefaultResult() };
   }
 }
@@ -482,9 +589,17 @@ async function recognizeWithClaude(imageBase64, mimeType) {
 /**
  * 使用 OpenAI GPT-4V 识别
  */
-async function recognizeWithOpenAI(imageBase64, mimeType) {
+async function recognizeWithOpenAI(imageBase64, mimeType, requestId = 'no-id') {
+  const stepStart = Date.now();
   const apiKey = process.env.LLM_API_KEY;
   const apiUrl = process.env.LLM_API_URL || 'https://api.openai.com/v1/chat/completions';
+  const model = process.env.LLM_MODEL || 'gpt-4o';
+  
+  console.log(`[${requestId}] OpenAI OCR: 开始识别`);
+  console.log(`[${requestId}] OpenAI OCR: API URL = ${apiUrl}`);
+  console.log(`[${requestId}] OpenAI OCR: Model = ${model}`);
+  console.log(`[${requestId}] OpenAI OCR: 图片大小 = ${(imageBase64.length / 1024).toFixed(2)}KB`);
+  
   const prompt = `请识别这张招聘截图，提取以下信息并以JSON格式返回：
 1. company_name: 公司名称
 2. position: 职位名称
@@ -498,6 +613,10 @@ async function recognizeWithOpenAI(imageBase64, mimeType) {
   
   try {
     const fetch = require('node-fetch');
+    
+    console.log(`[${requestId}] OpenAI OCR: 发起 API 请求...`);
+    const fetchStart = Date.now();
+    
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -505,7 +624,7 @@ async function recognizeWithOpenAI(imageBase64, mimeType) {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: process.env.LLM_MODEL || 'gpt-4o',
+        model: model,
         messages: [{
           role: 'user',
           content: [
@@ -517,21 +636,32 @@ async function recognizeWithOpenAI(imageBase64, mimeType) {
       })
     });
 
+    console.log(`[${requestId}] OpenAI OCR: API 响应状态 = ${response.status}, 耗时 ${Date.now() - fetchStart}ms`);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`[${requestId}] OpenAI OCR: API 错误 ${response.status} - ${errorText}`);
       return { success: false, error: `API 错误: ${response.status}`, data: getDefaultResult() };
     }
 
+    const parseStart = Date.now();
     const data = await response.json();
+    console.log(`[${requestId}] OpenAI OCR: JSON 解析完成, 耗时 ${Date.now() - parseStart}ms`);
     
     if (data.choices && data.choices[0]) {
       const content = data.choices[0].message.content;
       const parsed = parseJsonResponse(content);
+      
+      console.log(`[${requestId}] OpenAI OCR: 识别成功, 总耗时 ${Date.now() - stepStart}ms`);
+      console.log(`[${requestId}] OpenAI OCR: Token 使用 - prompt: ${data.usage?.prompt_tokens}, completion: ${data.usage?.completion_tokens}`);
+      
       return { success: true, data: { ...getDefaultResult(), ...parsed } };
     }
     
+    console.error(`[${requestId}] OpenAI OCR: 响应格式异常, 总耗时 ${Date.now() - stepStart}ms`);
     return { success: false, error: 'OpenAI 解析失败', data: getDefaultResult() };
   } catch (err) {
+    console.error(`[${requestId}] OpenAI OCR 异常, 耗时 ${Date.now() - stepStart}ms:`, err);
     return { success: false, error: err.message, data: getDefaultResult() };
   }
 }

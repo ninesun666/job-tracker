@@ -20,6 +20,14 @@ function configureApp() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+  // 全局请求超时设置（针对长时间运行的 API，如 OCR）
+  app.use((req, res, next) => {
+    // 设置 socket 超时为 3 分钟
+    req.setTimeout(180000);
+    res.setTimeout(180000);
+    next();
+  });
+
   // 静态文件（上传的图片）
   const uploadsDir = path.join(__dirname, 'uploads');
   if (!fs.existsSync(uploadsDir)) {

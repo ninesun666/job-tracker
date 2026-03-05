@@ -57,7 +57,8 @@ export default function OCRScan() {
       formData.append('image', file)
 
       const res = await axios.post('/api/ocr/recognize', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 180000 // 3 分钟超时
       })
 
       if (res.data.success) {
