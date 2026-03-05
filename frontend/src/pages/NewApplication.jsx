@@ -150,7 +150,8 @@ function NewApplication() {
 
     try {
       const res = await api.post('/ocr/recognize', formDataUpload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 180000 // 3 分钟超时
       })
 
       if (res.data.success && res.data.data) {
