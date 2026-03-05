@@ -309,7 +309,10 @@ function NewApplication() {
               onChange={handleChange}
               placeholder="公司背景信息，如是否为大厂子公司、外包公司、行业地位等..."
               rows={3}
-              style={{ backgroundColor: formData.company_notes ? '#fefce8' : undefined }}
+              style={formData.company_notes ? { 
+                backgroundColor: 'var(--warning-light)',
+                color: 'var(--text-primary)'
+              } : undefined}
             />
             {formData.company_notes && (
               <div style={{ fontSize: '12px', color: 'var(--text-placeholder)', marginTop: 4 }}>

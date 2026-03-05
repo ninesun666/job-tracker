@@ -117,6 +117,14 @@ export default function Layout() {
             <Menu className="w-6 h-6" />
           </button>
           <div className="ml-auto flex items-center gap-4">
+            {/* 主题切换按钮 - 顶部栏 */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 hover:bg-[var(--bg-hover)] rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              title={isDark ? '切换亮色模式' : '切换暗色模式'}
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
             <span className="text-sm text-[var(--text-secondary)] hidden sm:inline">
               面试投递记录平台
             </span>
