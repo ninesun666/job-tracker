@@ -1,6 +1,9 @@
 # 面试投递记录平台
 
 一个帮助求职者管理投递记录、AI识图提取岗位信息、自动调研公司的工具平台。
+![alt text](docs/image.png)
+添加求职信息
+![alt text](docs/add-your-job.png)
 
 ## 功能特性
 

@@ -84,25 +84,11 @@ jobs:
           echo "🚀 启动服务..."
           export DOCKER_USERNAME=ninesun6666
           
-          # 数据库配置
-          export PG_USER=${{ secrets.PG_USER }}
-          export PG_PASSWORD=${{ secrets.PG_PASSWORD }}
+         
           
-          # JWT 配置
-          export JWT_SECRET=${{ secrets.JWT_SECRET }}
           
-          # GitHub OAuth
-          export GITHUB_CLIENT_ID=${{ secrets.GITHUB_CLIENT_ID }}
-          export GITHUB_CLIENT_SECRET=${{ secrets.GITHUB_CLIENT_SECRET }}
-          export GITHUB_CALLBACK_URL=${{ secrets.GITHUB_CALLBACK_URL }}
-          export CLIENT_URL=${{ secrets.CLIENT_URL }}
           
-          # OCR 服务
-          export OCR_PROVIDER=${{ secrets.OCR_PROVIDER }}
-          export LLM_API_URL=${{ secrets.LLM_API_URL }}
-          export LLM_API_KEY=${{ secrets.LLM_API_KEY }}
-          export LLM_MODEL=${{ secrets.LLM_MODEL }}
-          
+         
           docker compose -f docker-compose.prod.yml up -d
 
           echo "✅ 容器启动成功"
